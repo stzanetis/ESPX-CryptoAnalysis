@@ -1,4 +1,5 @@
 #include "websocket.h"
+#include "../utils/utils.h"
 
 atomic_bool is_connected = false;
 time_t last_activity = 0;
@@ -58,7 +59,7 @@ int websocket_callback(struct lws* wsi, enum lws_callback_reasons reason, void* 
             char *message = malloc(len + 1);
             memcpy(message, in, len);
             message[len] = '\0';
-            //parse_transaction(message, NULL);
+            parse_transaction(message, len, &trade_queue);
             free(message);
             break;
 
