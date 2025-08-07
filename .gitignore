@@ -1,2 +1,10 @@
-/Final Project
+#General
+/.vscode
+/tests
+
+# Preparation Project
 /Preperation Project/ProdConTestEX.exe
+
+# Final Project
+Final Project/obj
+Final Project/bin
