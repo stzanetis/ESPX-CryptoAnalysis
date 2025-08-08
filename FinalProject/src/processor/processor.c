@@ -1,5 +1,6 @@
 #include "processor.h"
 #include "../calculate/moving_avg.h"
+#include "../calculate/correlation.h"
 
 atomic_int processor_interrupt = 0;
 
@@ -25,6 +26,8 @@ void* processor_func(void* arg __attribute__((unused))) {
         // Process data
         time_t current_time = time(NULL);
         calculate_moving_avg(current_time);
+        printf("DEBUG: Processed moving averages at %s", ctime(&current_time));
+        calculate_correlation(current_time);
     }
 
     return NULL;

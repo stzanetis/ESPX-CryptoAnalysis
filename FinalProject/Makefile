@@ -6,14 +6,14 @@ CFLAGS = -Wall -Wextra -Wpedantic -O2 -flto -D_GNU_SOURCE -D_POSIX_C_SOURCE=1993
 LDFLAGS = -lwebsockets -lssl -lcrypto -lcjson -lm -lpthread -latomic
 
 SRC = src/main.c src/websocket/websocket.c src/logger/logger.c \
-	src/processor/processor.c src/utils/utils.c src/calculate/moving_avg.c
+	src/processor/processor.c src/utils/utils.c src/calculate/moving_avg.c src/calculate/correlation.c
 OBJ = $(patsubst src/%.c,obj/%.o,$(SRC))
 
 all: dirs host
 
 dirs:
 	@mkdir -p bin obj/websocket obj/logger obj/processor obj/utils obj/calculate \
-		logs/transactions logs/timing data/mavg
+		logs/transactions logs/timing data/mavg data/corr
 
 host: dirs $(OBJ)
 	$(CC) $(CFLAGS) -o bin/$(TARGET_NAME) $(OBJ) $(LDFLAGS)
