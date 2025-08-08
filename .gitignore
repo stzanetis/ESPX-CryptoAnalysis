@@ -3,9 +3,10 @@
 /tests
 
 # Preparation Project
-/Preperation Project/ProdConTestEX.exe
+/PreperationProject/ProdConTestEX.exe
 
 # Final Project
-Final Project/obj
-Final Project/bin
-Final Project/logs
+FinalProject/obj
+FinalProject/bin
+FinalProject/logs
+FinalProject/data
