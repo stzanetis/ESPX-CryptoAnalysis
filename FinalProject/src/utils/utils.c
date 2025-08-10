@@ -94,12 +94,25 @@ void parse_transaction(const char* json_str, size_t len, TradeQueue* queue) {
                 if(strcmp(tdata.symbol, symbols[i]) == 0) {
                     pthread_mutex_lock(&symbol_histories[i].mutex);
                     
+                    // Clean old trades first
+                    time_t cutoff = tdata.timestamp - 900;
+                    size_t write_pos = 0;
+                    
+                    // Compact array by removing old trades
+                    for(size_t read_pos = 0; read_pos < symbol_histories[i].count; read_pos++) {
+                        if(symbol_histories[i].trades[read_pos].timestamp >= (uint64_t)cutoff) {
+                            if(write_pos != read_pos) {
+                                symbol_histories[i].trades[write_pos] = symbol_histories[i].trades[read_pos];
+                            }
+                            write_pos++;
+                        }
+                    }
+                    symbol_histories[i].count = write_pos;
+                    
                     // Resize array if needed
                     if(symbol_histories[i].count >= symbol_histories[i].capacity) {
-                        symbol_histories[i].capacity = symbol_histories[i].capacity ? 
-                            symbol_histories[i].capacity * 2 : 128;
-                        symbol_histories[i].trades = realloc(symbol_histories[i].trades,
-                            symbol_histories[i].capacity * sizeof(TradeData));
+                        symbol_histories[i].capacity = symbol_histories[i].capacity ? symbol_histories[i].capacity * 2 : 128;
+                        symbol_histories[i].trades = realloc(symbol_histories[i].trades, symbol_histories[i].capacity * sizeof(TradeData));
                     }
                     
                     // Add trade to history
