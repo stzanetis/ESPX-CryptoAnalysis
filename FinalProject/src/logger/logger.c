@@ -23,9 +23,7 @@ void* logger_func(void* arg) {
         for(int i = 0; i < 8; i++) {
             if(strcmp(trade.symbol, symbols[i]) == 0) {
                 if(log_files[i]) {
-                    fprintf(log_files[i], "%llu,%.8f,%.8f\n",
-                        (unsigned long long)trade.timestamp,
-                        trade.price, trade.volume);
+                    fprintf(log_files[i], "[%llu], Price: %.8f, Volume: %.8f\n", (unsigned long long)trade.timestamp, trade.price, trade.volume);
                     fflush(log_files[i]); // Ensure data is written
                 }
                 break;

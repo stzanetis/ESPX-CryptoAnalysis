@@ -1,4 +1,5 @@
 #include "processor.h"
+#include "../utils/utils.h"
 #include "../calculate/moving_avg.h"
 #include "../calculate/correlation.h"
 
@@ -23,11 +24,16 @@ void* processor_func(void* arg __attribute__((unused))) {
         uint64_t exp;
         read(timer_fd, &exp, sizeof(exp));
 
+        struct timespec start, end;
+        clock_gettime(CLOCK_REALTIME, &start);
+
         // Process data
         time_t current_time = time(NULL);
         calculate_moving_avg(current_time);
-        printf("DEBUG: Processed moving averages at %s", ctime(&current_time));
         calculate_correlation(current_time);
+
+        clock_gettime(CLOCK_REALTIME, &end);
+        log_time(&start, &end);
     }
 
     return NULL;

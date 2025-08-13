@@ -13,7 +13,7 @@ all: dirs host
 
 dirs:
 	@mkdir -p bin obj/websocket obj/logger obj/processor obj/utils obj/calculate \
-		logs/transactions logs/timing data/mavg data/corr
+		logs/transactions data/mavg data/corr
 
 host: dirs $(OBJ)
 	$(CC) $(CFLAGS) -o bin/$(TARGET_NAME) $(OBJ) $(LDFLAGS)

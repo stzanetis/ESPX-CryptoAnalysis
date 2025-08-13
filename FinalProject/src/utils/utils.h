@@ -44,3 +44,4 @@ void queue_init(TradeQueue* q, size_t size);
 void queue_push(TradeQueue* q, TradeData* trade);
 void queue_pop (TradeQueue* q, TradeData* trade);
 void parse_transaction(const char* json_str, size_t len, TradeQueue* queue);
+void log_time(struct timespec* start, struct timespec* end);

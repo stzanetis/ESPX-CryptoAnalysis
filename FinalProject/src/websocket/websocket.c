@@ -55,7 +55,6 @@ int websocket_callback(struct lws* wsi, enum lws_callback_reasons reason, void* 
             break;
 
         case LWS_CALLBACK_CLIENT_RECEIVE:
-            //printf("Received message: %.*s\n", (int)len, (char *)in);
             char *message = malloc(len + 1);
             memcpy(message, in, len);
             message[len] = '\0';

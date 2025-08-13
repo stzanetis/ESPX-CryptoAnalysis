@@ -15,8 +15,8 @@ double pearson_correlation(double* x, double* y, int n) {
         sum_xy += x[i] * y[i];
     }
     
-    double num = sum_xy - (sum_x*sum_y)/n;
-    double den = sqrt( (sum_xx - pow(sum_x, 2)/n)*(sum_yy - pow(sum_y, 2)/n) );
+    double num = sum_xy - (sum_x*sum_y) / n;
+    double den = sqrt((sum_xx - pow(sum_x, 2) / n) * (sum_yy - pow(sum_y, 2) / n));
     
     return (fabs(den) > 1e-9) ? num / den : 0.0;
 }

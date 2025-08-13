@@ -20,13 +20,12 @@ void calculate_moving_avg(time_t time_now) {
 
         // Calculate moving average
         double sum_price = 0.0, sum_volume = 0.0;
-        for(size_t j=0; j<symbol_histories[i].count; j++) {
+        for(size_t j = 0; j < symbol_histories[i].count; j++) {
             sum_price  += symbol_histories[i].trades[j].price;
             sum_volume += symbol_histories[i].trades[j].volume;
         }
         
-        double current_ma = (symbol_histories[i].count > 0) ? 
-            sum_price / symbol_histories[i].count : 0.0;
+        double current_ma = (symbol_histories[i].count > 0) ? sum_price / symbol_histories[i].count : 0.0;
         
         // Store in circular buffer
         symbol_histories[i].movingAvg_history[symbol_histories[i].movingAvg_index] = current_ma;
@@ -39,7 +38,7 @@ void calculate_moving_avg(time_t time_now) {
         snprintf(filename, sizeof(filename), "data/mavg/%s.log", symbols[i]);
         FILE* file = fopen(filename, "a");
         if(file) {
-            fprintf(file, "%llu,%.8f\n", (unsigned long long)time_now, current_ma);
+            fprintf(file, "[%llu], MovingAvg: %.8f\n", (unsigned long long)time_now, current_ma);
             fflush(file);
             fclose(file);
         }

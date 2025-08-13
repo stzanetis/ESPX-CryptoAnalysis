@@ -127,3 +127,21 @@ void parse_transaction(const char* json_str, size_t len, TradeQueue* queue) {
     // Clean up
     cJSON_Delete(json);
 }
+
+void log_time(struct timespec* start, struct timespec* end) {
+    FILE* f = fopen("logs/timings.log", "a");
+    if (f) {
+        time_t start_s = start->tv_sec;
+        time_t end_s = end->tv_sec;
+        char start_time[32], end_time[32];
+        strftime(start_time, sizeof(start_time), "%H:%M:%S", localtime(&start_s));
+        strftime(end_time, sizeof(end_time), "%H:%M:%S", localtime(&end_s));
+        
+        fprintf(f, "Start: %s.%03ld, End: %s.%03ld, Duration: %.3f ms\n",
+            start_time, (long)(start->tv_nsec / 1000000),
+            end_time, (long)(end->tv_nsec / 1000000),
+            ((end->tv_sec - start->tv_sec) * 1000.0) + 
+            ((end->tv_nsec - start->tv_nsec) / 1000000.0));
+        fclose(f);
+    }
+}
