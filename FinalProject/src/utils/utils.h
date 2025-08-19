@@ -35,6 +35,14 @@ typedef struct {
     int movingAvg_count;
 } SymbolHistory;
 
+typedef struct {
+    unsigned long user;
+    unsigned long nice;
+    unsigned long system;
+    unsigned long idle;
+    unsigned long iowait;
+} CpuData;
+
 extern const char* symbols[8];
 extern SymbolHistory symbol_histories[8];
 extern TradeQueue trade_queue;
@@ -45,3 +53,5 @@ void queue_push(TradeQueue* q, TradeData* trade);
 void queue_pop (TradeQueue* q, TradeData* trade);
 void parse_transaction(const char* json_str, size_t len, TradeQueue* queue);
 void log_time(struct timespec* start, struct timespec* end);
+void get_cpu_data(CpuData* data);
+float get_cpu_idle(CpuData* current_data, CpuData* previous_data);

@@ -19,6 +19,9 @@ void* processor_func(void* arg __attribute__((unused))) {
     its.it_interval.tv_nsec = 0;
     timerfd_settime(timer_fd, TFD_TIMER_ABSTIME, &its, NULL);
 
+    CpuData current_data = {0};
+    CpuData previous_data = {0};
+
     while(!processor_interrupt) {
         // Wait for the timer to expire
         uint64_t exp;
@@ -32,8 +35,19 @@ void* processor_func(void* arg __attribute__((unused))) {
         calculate_moving_avg(current_time);
         calculate_correlation(current_time);
 
+        // Get calculation times
         clock_gettime(CLOCK_REALTIME, &end);
         log_time(&start, &end);
+
+        // Get CPU data and log idle time
+        get_cpu_data(&current_data);
+        float idle_time = get_cpu_idle(&current_data, &previous_data);
+        previous_data = current_data;
+        FILE* file = fopen("logs/cpu_idle.log", "a");
+        if (file) {
+            fprintf(file, "[%ld], %.2f\n", time(NULL), idle_time);
+            fclose(file);
+        }
     }
 
     return NULL;

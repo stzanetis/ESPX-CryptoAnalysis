@@ -145,3 +145,33 @@ void log_time(struct timespec* start, struct timespec* end) {
         fclose(f);
     }
 }
+
+void get_cpu_data(CpuData* data) {
+    FILE* f = fopen("/proc/stat", "r");
+    if (!f) {
+        perror("Failed to open /proc/stat");
+        return; // Handle error appropriately
+    }
+
+    char line[256];
+    if (fgets(line, sizeof(line), f)) {
+        sscanf(line, "cpu %lu %lu %lu %lu %lu", &data->user, &data->nice, &data->system, &data->idle, &data->iowait);
+    }
+    fclose(f);
+}
+
+float get_cpu_idle(CpuData* current_data, CpuData* previous_data) {
+    const unsigned long prev_total = previous_data->user + previous_data->nice + 
+                                     previous_data->system + previous_data->idle + previous_data->iowait;
+                                     
+    const unsigned long curr_total = current_data->user + current_data->nice + 
+                                     current_data->system + current_data->idle + current_data->iowait;
+    
+    const unsigned long total_diff = curr_total - prev_total;
+    if(total_diff == 0) {
+        return 0.0f;
+    }
+    
+    const unsigned long idle_diff = current_data->idle - previous_data->idle;
+    return ((float)idle_diff / total_diff) * 100.0f;
+}
