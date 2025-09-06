@@ -12,14 +12,15 @@ symbols = [
 ]
 
 MA_DIR = "data/mavg"
-TX_DIR = "logs/transactions"
+CORR_DIR = "data/corr"
 TIMINGS_LOG = "logs/timings.log"
+CPU_IDLE_LOG = "logs/cpu_idle.log"
 OUT_DIR = "results"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 re_ma = re.compile(r'^\[(\d+)\],\s*MovingAvg:\s*([0-9.]+)')
-re_tx = re.compile(r'^\[(\d+)\],\s*Price:\s*([0-9.]+),\s*Volune:\s*([0-9.]+)')
 re_tim = re.compile(r'^Start:\s*([0-9:.]+),\s*End:\s*([0-9:.]+),\s*Duration:\s*([0-9.]+)\s*ms')
+re_cpu = re.compile(r'^\[(\d+)\],\s*([0-9.]+)')
 
 def load_moving_avg():
     rows = []
@@ -41,51 +42,6 @@ def load_moving_avg():
     pivot = df.pivot_table(index='datetime', columns='symbol', values='moving_avg', aggfunc='last').sort_index()
     return pivot
 
-def load_transactions_counts():
-    per_minute = {}
-    for sym in symbols:
-        path = f"{TX_DIR}/{sym}.log"
-        if not os.path.exists(path):
-            continue
-        with open(path, 'r') as f:
-            for line in f:
-                m = re_tx.match(line.strip())
-                if not m:
-                    continue
-                ts = int(m.group(1))
-                minute = ts // 60  # minute bucket (epoch minutes)
-                per_minute[minute] = per_minute.get(minute, 0) + 1
-    if not per_minute:
-        return pd.DataFrame(columns=['minute_epoch','trade_count'])
-    data = [(k, v) for k, v in per_minute.items()]
-    df = pd.DataFrame(data, columns=['minute_epoch','trade_count'])
-    df['minute_dt'] = pd.to_datetime(df['minute_epoch']*60, unit='s')
-    return df.sort_values('minute_dt')
-
-def correlation_heatmap_from_ma(ma_df):
-    if ma_df.empty:
-        print("No moving average data to compute correlation.")
-        return
-    # Drop columns with all NaN
-    ma_df = ma_df.dropna(axis=1, how='all')
-    # Option: forward fill small gaps (keep minimal to avoid bias)
-    filled = ma_df.ffill().bfill()
-    corr = filled.corr()
-    # Average off-diagonal
-    mask_diag = np.eye(len(corr), dtype=bool)
-    vals = corr.values[~mask_diag]
-    avg_corr = np.nanmean(vals)
-    plt.figure(figsize=(12,10))
-    ax = sns.heatmap(corr, annot=True, fmt=".3f", cmap="RdBu_r", center=0, vmin=-1, vmax=1,
-                     cbar_kws={'label':'Correlation'})
-    ax.text(0.02, 0.98, f"Avg Corr: {avg_corr:.3f}", transform=ax.transAxes,
-            fontsize=12, bbox=dict(facecolor="white", edgecolor="gray", boxstyle="round,pad=0.3"),
-            va='top')
-    plt.title("Cryptocurrency Correlation (From Moving Averages)")
-    plt.tight_layout()
-    plt.savefig(f"{OUT_DIR}/correlation.png")
-    plt.close()
-
 def plot_moving_averages(ma_df):
     if ma_df.empty:
         print("No moving average data for plot.")
@@ -103,6 +59,94 @@ def plot_moving_averages(ma_df):
             ax.set_title(sym)
     plt.tight_layout()
     plt.savefig(f"{OUT_DIR}/moving_averages.png")
+    plt.close()
+
+def load_corr():
+    corr_sum = pd.DataFrame(0.0, index=symbols, columns=symbols, dtype=float)
+    count = pd.DataFrame(0, index=symbols, columns=symbols, dtype=int)
+
+    for sym_file in symbols:
+        path = os.path.join(CORR_DIR, f"{sym_file}.log")
+        if not os.path.isfile(path):
+            continue
+
+        with open(path, "r") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line:
+                    continue
+                parts = line.split(",")
+                if len(parts) < 11:
+                    continue
+                try:
+                    vals = [float(x) for x in parts[-8:]]
+                except ValueError:
+                    continue
+
+                for i, target_sym in enumerate(symbols):
+                    corr_sum.loc[sym_file, target_sym] += vals[i]
+                    count.loc[sym_file, target_sym] += 1
+
+    corr = pd.DataFrame(index=symbols, columns=symbols, dtype=float)
+    for a in symbols:
+        for b in symbols:
+            if count.loc[a, b] > 0:
+                corr.loc[a, b] = corr_sum.loc[a, b] / count.loc[a, b]
+            else:
+                corr.loc[a, b] = np.nan
+
+    n = len(symbols)
+    for i in range(n):
+        for j in range(i + 1, n):
+            a, b = symbols[i], symbols[j]
+            ab, ba = corr.loc[a, b], corr.loc[b, a]
+            if pd.notna(ab) and pd.notna(ba):
+                v = 0.5 * (ab + ba)
+            elif pd.notna(ab):
+                v = ab
+            else:
+                v = ba
+            corr.loc[a, b] = v
+            corr.loc[b, a] = v
+
+    for s in symbols:
+        if pd.isna(corr.loc[s, s]):
+            corr.loc[s, s] = 1.0
+    corr = corr.fillna(0.0)
+
+    return corr.astype(float)
+
+def plot_heatmap_corr(corr_df):
+    if corr_df is None or corr_df.empty:
+        print("No correlation data for heatmap.")
+        return
+
+    corr = corr_df.astype(float)
+
+    # labels: numbers off-diagonal, '-' on diagonal
+    labels = corr.applymap(lambda x: f"{x:.2f}")
+    for i in range(len(symbols)):
+        labels.iat[i, i] = "-"
+
+    # mask the diagonal to render those cells white
+    diag_mask = np.eye(len(corr), dtype=bool)
+
+    plt.figure(figsize=(12, 10))
+    ax = sns.heatmap(
+        corr,
+        mask=diag_mask,               # make diagonal white
+        annot=labels.values,          # string labels
+        fmt="",                       # use provided strings
+        cmap="coolwarm",
+        vmin=-1, vmax=1,
+        linewidths=0.5,
+        cbar_kws={"shrink": 0.8},
+        square=True,
+        annot_kws={"color": "white"}  # all text white
+    )
+    ax.set_title("Cryptocurrency Correlation Matrix")
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUT_DIR, "correlation_heatmap.png"))
     plt.close()
 
 def load_timings():
@@ -130,7 +174,7 @@ def load_timings():
     df = df.sort_values('start')
     return df
 
-def plot_timings(timing_df, trades_df):
+def plot_timings(timing_df):
     if timing_df.empty:
         print("No timing data.")
         return
@@ -144,37 +188,59 @@ def plot_timings(timing_df, trades_df):
     plt.savefig(f"{OUT_DIR}/timings_durations.png")
     plt.close()
 
-    # Merge with trade counts per minute (align start minute)
-    if trades_df.empty:
+def load_cpu_idle():
+    if not os.path.exists(CPU_IDLE_LOG):
+        return pd.DataFrame()
+    
+    data = []
+    with open(CPU_IDLE_LOG, 'r') as f:
+        for line in f:
+            m = re_cpu.match(line.strip())
+            if m:
+                ts = int(m.group(1))
+                idle_pct = float(m.group(2))
+                data.append((ts, idle_pct))
+    
+    if not data:
+        return pd.DataFrame()
+    
+    df = pd.DataFrame(data, columns=['timestamp', 'cpu_idle_pct'])
+    df['datetime'] = pd.to_datetime(df['timestamp'], unit='s')
+    return df
+
+def plot_cpu_idle(cpu_df):
+    if cpu_df.empty:
+        print("No CPU idle data available.")
         return
-    timing_df['minute_epoch'] = (timing_df['start'].astype('int64') // 10**9) // 60
-    merged = timing_df.merge(trades_df[['minute_epoch','trade_count']], on='minute_epoch', how='left')
-    plt.figure(figsize=(10,5))
-    ax1 = plt.gca()
-    ax1.plot(merged['start'], merged['duration_ms'], color='tab:blue', label='Duration (ms)')
-    ax1.set_ylabel('Duration (ms)', color='tab:blue')
-    ax2 = ax1.twinx()
-    ax2.bar(merged['start'], merged['trade_count'].fillna(0), alpha=0.3, color='tab:orange', label='Trades/min')
-    ax2.set_ylabel('Trades per minute', color='tab:orange')
-    plt.title("Processing Duration vs Trade Volume")
-    # Combined legend
-    lines, labels = [], []
-    for ax in (ax1, ax2):
-        l, lab = ax.get_legend_handles_labels()
-        lines.extend(l); labels.extend(lab)
-    plt.legend(lines, labels, loc='upper right')
+    
+    # Create a histogram of CPU idle distribution
+    plt.figure(figsize=(10, 5))
+    avg_idle = cpu_df['cpu_idle_pct'].mean()
+    sns.histplot(cpu_df['cpu_idle_pct'], bins=20, kde=True)
+    plt.title("Distribution of CPU Idle Percentage")
+    plt.xlabel("CPU Idle (%)")
+    plt.ylabel("Frequency")
+    plt.axvline(x=avg_idle, color='r', linestyle='--', label=f'Avg: {avg_idle:.2f}%')
+    plt.legend()
     plt.tight_layout()
-    plt.savefig(f"{OUT_DIR}/timings_vs_trades.png")
+    plt.savefig(f"{OUT_DIR}/cpu_idle_histogram.png")
     plt.close()
 
 def main():
     print("Evaluating project data...")
+
     ma_df = load_moving_avg()
-    correlation_heatmap_from_ma(ma_df)
     plot_moving_averages(ma_df)
-    trades_df = load_transactions_counts()
+
+    corr_df = load_corr()
+    plot_heatmap_corr(corr_df)
+
     timing_df = load_timings()
-    plot_timings(timing_df, trades_df)
+    plot_timings(timing_df)
+
+    cpu_df = load_cpu_idle()
+    plot_cpu_idle(cpu_df)
+
     print(f"Generated assets in {OUT_DIR}")
 
 if __name__ == "__main__":
