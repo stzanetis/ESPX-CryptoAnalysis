@@ -66,6 +66,7 @@ int main() {
                 if (current_wsi) {
                     printf("Connected to WebSocket server.\n");
                     last_activity = now;  // reset timer on connect attempt
+                    backoff = 2;
                 } else {
                     printf("Connection failed, retrying...\n");
                     backoff = backoff < max_backoff ? backoff * 2 : max_backoff;

@@ -44,7 +44,7 @@ int websocket_callback(struct lws* wsi, enum lws_callback_reasons reason, void* 
             if (!*subscribed) {
                 subscribe(wsi);
             } else if (now - last_ping >= 60) {
-                unsigned char ping_buf[LWS_PRE];
+                unsigned char ping_buf[LWS_PRE + 1];
                 int ret = lws_write(wsi, &ping_buf[LWS_PRE], 0, LWS_WRITE_PING);
                 if (ret < 0) {
                     atomic_store(&is_connected, false);
@@ -55,6 +55,7 @@ int websocket_callback(struct lws* wsi, enum lws_callback_reasons reason, void* 
             break;
 
         case LWS_CALLBACK_CLIENT_RECEIVE:
+            last_activity = now;
             char *message = malloc(len + 1);
             memcpy(message, in, len);
             message[len] = '\0';
