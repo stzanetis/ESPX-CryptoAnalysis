@@ -13,3 +13,15 @@ The modified code using **gettimeofday()** calculates important metrics in order
 The ` evaluation.py ` script compiles the code and creates performance metrics for a number of test cases.
 
 ## Final Project
+
+The goal of this assignment is to implement a real-time system on a **Raspberry Pi** that receives asynchronous trade data for the following cryptocurrency symbols via the **OKX WebSocket public channel**:
+
+`
+BTC-USDT, ADA-USDT, ETH-USDT, DOGE-USDT, XRP-USDT, SOL-USDT, LTC-USDT, BNB-USDT
+`
+
+The system:
+
+1. **Logs trades to files**: Each symbol has its own file, and every received trade is recorded immediately.
+2. **Computes moving averages and volume**: Every minute, computes the 15-minute moving average of trade prices and the total volume, saving them in a separate file.
+3. **Compute Pearson correlation**: Every minute, calculates the Pearson correlation between the last 8 moving averages for each symbol and the corresponding moving averages of all other symbols.
