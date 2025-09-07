@@ -5,17 +5,18 @@ CFLAGS = -Wall -Wextra -Wpedantic -O2 -flto -D_GNU_SOURCE -D_POSIX_C_SOURCE=1993
 LDFLAGS = -lwebsockets -lssl -lcrypto -lcjson -lm -lpthread -latomic
 
 # Raspberry Compiler
-CC_PI = arm-none-linux-gnueabihf-gcc
+CC_PI = aarch64-linux-gnu-gcc
 TARGET_NAME_PI = espx_crypto_pi
 SYSROOT = sysroot_rpi
 CFLAGS_PI := -Wall -Wextra -Wpedantic -O2 -flto -D_GNU_SOURCE -D_POSIX_C_SOURCE=199309L \
-			 -pthread -Iinclude -marm -mcpu=arm1176jzf-s -mfpu=vfp --sysroot=$(SYSROOT) \
-			 -B$(SYSROOT)/usr/lib/arm-linux-gnueabihf/ \
+             -pthread -Iinclude -march=armv8-a -mcpu=cortex-a53 \
+             --sysroot=$(SYSROOT) \
+             -B$(SYSROOT)/usr/lib/aarch64-linux-gnu/ \
              -isystem $(SYSROOT)/usr/include \
-			 -isystem $(SYSROOT)/usr/include/arm-linux-gnueabihf
+             -isystem $(SYSROOT)/usr/include/aarch64-linux-gnu
 LDFLAGS_PI := --sysroot=$(SYSROOT) -static \
-			  -lwebsockets -lssl -lcrypto -lcjson -lm -lpthread -latomic \
-			  -L$(SYSROOT)/lib -L$(SYSROOT)/usr/lib/arm-linux-gnueabihf \
+              -lwebsockets -lssl -lcrypto -lcjson -lm -lpthread -latomic \
+              -L$(SYSROOT)/lib -L$(SYSROOT)/usr/lib/aarch64-linux-gnu
 
 SRC = src/main.c src/websocket/websocket.c src/logger/logger.c src/processor/processor.c src/utils/utils.c src/calculate/moving_avg.c src/calculate/correlation.c
 OBJ = $(patsubst src/%.c,obj/pc/%.o,$(SRC))
@@ -29,13 +30,15 @@ dirs:
 host: dirs $(OBJ)
 	$(CC) $(CFLAGS) -o bin/$(TARGET_NAME) $(OBJ) $(LDFLAGS)
 
-pi: dirs $(OBJ)
+pi: dirs $(OBJ_PI)
 	$(CC_PI) $(CFLAGS_PI) -o bin/$(TARGET_NAME_PI) $(OBJ_PI) $(LDFLAGS_PI)
 
 obj/pc/%.o: src/%.c
+	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 obj/pi/%.o: src/%.c
+	mkdir -p $(dir $@)
 	$(CC_PI) $(CFLAGS_PI) -c $< -o $@
 
 clean:
